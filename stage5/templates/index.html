@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Course Generator — Stage 5</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+  :root {
+    --bg: #f7f5f1;
+    --surface: #ffffff;
+    --surface-2: #faf8f4;
+    --surface-sunken: #f1ede6;
+    --border: #e7e2d8;
+    --border-strong: #d5cec0;
+    --text: #1f1d19;
+    --text-2: #58524a;
+    --text-3: #8a8277;
+    --accent: oklch(0.74 0.13 65);
+    --accent-weak: oklch(0.96 0.04 75);
+    --accent-ink: oklch(0.38 0.10 55);
+    --danger: oklch(0.58 0.16 25);
+    --danger-weak: oklch(0.96 0.03 25);
+    --success: oklch(0.62 0.10 150);
+    --success-weak: oklch(0.95 0.04 150);
+    --code-bg: #f4efe6;
+    --ring: color-mix(in oklch, var(--accent) 45%, transparent);
+    --shadow-sm: 0 1px 0 rgba(30,25,15,0.03);
+    --shadow-md: 0 1px 2px rgba(30,25,15,0.04), 0 4px 16px rgba(30,25,15,0.04);
+    --r-1: 6px; --r-2: 10px; --r-3: 14px; --r-4: 20px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 48px;
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  [data-theme="dark"] {
+    --bg: #14130f;
+    --surface: #1b1a15;
+    --surface-2: #1f1d18;
+    --surface-sunken: #110f0c;
+    --border: #2b2821;
+    --border-strong: #3a362d;
+    --text: #f1ede4;
+    --text-2: #b8b1a2;
+    --text-3: #7d7668;
+    --accent: oklch(0.78 0.13 70);
+    --accent-weak: oklch(0.28 0.05 70);
+    --accent-ink: oklch(0.88 0.10 70);
+    --danger: oklch(0.68 0.17 25);
+    --danger-weak: oklch(0.26 0.06 25);
+    --success: oklch(0.72 0.12 150);
+    --success-weak: oklch(0.24 0.05 150);
+    --code-bg: #12110e;
+    --shadow-sm: 0 1px 0 rgba(0,0,0,0.3);
+    --shadow-md: 0 1px 2px rgba(0,0,0,0.3), 0 6px 24px rgba(0,0,0,0.25);
+  }
+  [data-density="compact"] {
+    --s-4: 12px; --s-5: 14px; --s-6: 18px; --s-7: 22px; --s-8: 32px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: var(--bg);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent-ink); }
+
+  ::selection { background: color-mix(in oklch, var(--accent) 40%, transparent); }
+
+  .app {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  @media (max-width: 1024px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+
+  .sidebar {
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+    padding: var(--s-5) var(--s-4);
+    position: sticky; top: 0; height: 100vh; overflow: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 6px var(--s-5);
+  }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--text);
+    display: grid; place-items: center;
+    color: var(--bg);
+    font-weight: 700; font-size: 13px; letter-spacing: -0.02em;
+  }
+  .brand-mark::after { content: "cg"; font-family: var(--font-mono); }
+  .brand-name { font-weight: 600; letter-spacing: -0.01em; }
+  .brand-sub { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+  .side-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    font-weight: 600;
+    padding: var(--s-3) 6px var(--s-2);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .history { display: flex; flex-direction: column; gap: 2px; }
+  .hist-item {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px var(--s-3);
+    border-radius: var(--r-2);
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    width: 100%;
+    transition: background 120ms ease;
+  }
+  .hist-item:hover { background: color-mix(in oklch, var(--text) 4%, transparent); }
+  .hist-item[aria-current="true"] {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .dot.running, .dot.queued { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 20%, transparent); animation: pulse 1.4s ease-in-out infinite; }
+  .dot.complete { background: var(--success); }
+  .dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+  .hist-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist-meta { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+  .main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: var(--s-7) var(--s-7) var(--s-8);
+    width: 100%;
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: var(--s-6);
+    gap: var(--s-4);
+  }
+  .crumbs {
+    display: flex; align-items: center; gap: var(--s-2);
+    font-size: 12px;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    margin-bottom: 6px;
+  }
+  .crumbs span:not(:last-child)::after { content: "/"; margin-left: var(--s-2); color: var(--text-3); opacity: 0.6; }
+  h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
+    margin: 0 0 4px;
+  }
+  .sub { color: var(--text-2); margin: 0; font-size: 14px; }
+
+  .topbar-right { display: flex; align-items: center; gap: var(--s-3); }
+  .kbd {
+    display: inline-flex; gap: 2px; align-items: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-3);
+  }
+  .kbd kbd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    color: var(--text-2);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: var(--s-6);
+    align-items: start;
+  }
+  .status-col { position: sticky; top: var(--s-6); }
+  [data-layout="stacked"] .grid { grid-template-columns: minmax(0, 1fr); }
+  [data-layout="stacked"] .status-col { position: static; }
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .status-col { position: static; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-3);
+    box-shadow: var(--shadow-sm);
+  }
+  .card + .card { margin-top: var(--s-5); }
+  .card-header {
+    padding: var(--s-5) var(--s-6);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--s-4);
+  }
+  .card-header h2 {
+    margin: 0;
+    font-size: 14px; font-weight: 600; letter-spacing: -0.005em;
+  }
+  .card-header .hint { color: var(--text-3); font-size: 12px; }
+  .card-body { padding: var(--s-6); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field + .field { margin-top: var(--s-5); }
+  .field label.label {
+    font-size: 13px; font-weight: 500; color: var(--text);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .field .help { font-size: 12px; color: var(--text-3); }
+  .field .help code, .inline-code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--code-bg);
+    padding: 1px 6px; border-radius: 4px;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  input[type="text"] {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-2);
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    color: var(--text);
+    width: 100%;
+  }
+  input[type="text"]::placeholder { color: var(--text-3); }
+  input[type="text"]:hover { border-color: color-mix(in oklch, var(--border-strong) 65%, var(--text) 20%); }
+  input[type="text"]:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--ring);
+  }
+  input.mono { font-family: var(--font-mono); font-size: 13px; }
+
+  .radio-group { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+  @media (max-width: 720px) { .radio-group { grid-template-columns: 1fr; } }
+  .radio-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: var(--s-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2);
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 120ms ease;
+    align-items: center;
+  }
+  .radio-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0; height: 0;
+  }
+  .radio-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .radio-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-weak);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .radio-card .r {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    margin-top: 2px;
+    display: grid; place-items: center;
+    background: var(--surface);
+    transition: border-color 120ms;
+  }
+  .radio-card.selected .r { border-color: var(--accent); border-width: 5px; background: var(--surface); }
+  .radio-card .rc-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .radio-card .rc-desc { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.45; }
+
+  .actions {
+    display: flex; gap: var(--s-3); align-items: center;
+    padding: var(--s-4) var(--s-6);
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: 0 0 var(--r-3) var(--r-3);
+    justify-content: space-between;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    border-radius: var(--r-2);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px; font-weight: 500;
+    transition: all 120ms ease;
+  }
+  .btn:hover:not(:disabled) { border-color: color-mix(in oklch, var(--border-strong) 50%, var(--text) 30%); }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--ring); border-color: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-accent {
+    background: var(--accent);
+    color: #1f1608;
+    border-color: var(--accent);
+  }
+  .btn-accent:hover:not(:disabled) { background: color-mix(in oklch, var(--accent) 92%, black); border-color: color-mix(in oklch, var(--accent) 92%, black); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+  .btn-ghost:hover:not(:disabled) { background: color-mix(in oklch, var(--text) 6%, transparent); color: var(--text); }
+  .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+  .status-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--s-4);
+    align-items: center;
+    padding: var(--s-5) var(--s-6);
+  }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    font-size: 12px; font-weight: 500;
+    color: var(--text-2);
+  }
+  .status-badge.running { background: var(--accent-weak); color: var(--accent-ink); border-color: color-mix(in oklch, var(--accent) 30%, var(--border)); }
+  .status-badge.queued { background: color-mix(in oklch, var(--text-3) 14%, var(--surface-sunken)); color: var(--text-2); border-color: var(--border); }
+  .status-badge.complete { background: var(--success-weak); color: color-mix(in oklch, var(--success) 70%, black); border-color: color-mix(in oklch, var(--success) 30%, var(--border)); }
+  .status-badge.error { background: var(--danger-weak); color: var(--danger); border-color: color-mix(in oklch, var(--danger) 30%, var(--border)); }
+  .status-meta { display: flex; flex-direction: column; gap: 2px; }
+  .status-title { font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
+  .status-id {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+    display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  }
+  .status-id code { background: transparent; }
+  .status-right {
+    text-align: right;
+    font-size: 11px; color: var(--text-3); font-family: var(--font-mono);
+    display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
+  }
+  .updating { display: inline-flex; align-items: center; gap: 6px; }
+  .updating .spin {
+    width: 9px; height: 9px; border-radius: 50%;
+    border: 1.5px solid var(--text-3); border-top-color: transparent;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .stepper {
+    padding: var(--s-4) var(--s-6) var(--s-5);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    position: relative;
+  }
+  .step {
+    display: flex; flex-direction: column; gap: 6px;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 0 var(--s-2);
+  }
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: calc(50% + 14px); right: calc(-50% + 14px); top: 10px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    z-index: 0;
+  }
+  .step.done:not(:last-child)::after { background: var(--success); }
+  .step.running:not(:last-child)::after {
+    background: linear-gradient(to right, var(--success) 0%, var(--accent) 50%, var(--border) 50%);
+  }
+  .step.error:not(:last-child)::after {
+    background: linear-gradient(to right, var(--success) 0%, var(--danger) 55%, var(--border) 55%);
+  }
+  .step-head {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    position: relative; z-index: 1;
+  }
+  .step-head .step-label { margin-top: 2px; }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--surface);
+    border: 1.5px solid var(--border-strong);
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 600;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+  .step.done .step-num {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+  }
+  .step.running .step-num {
+    background: var(--accent);
+    color: #1f1608;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 22%, transparent);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .step.error .step-num {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
+  .step-label { font-size: 12.5px; font-weight: 500; }
+  .step.running .step-label { color: var(--accent-ink); }
+  .step-meta {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text-3);
+    min-height: 14px;
+    text-align: center;
+  }
+  .step.skipped { opacity: 0.42; }
+  .step.skipped .step-num { border-style: dashed; }
+
+  .log-head {
+    padding: var(--s-4) var(--s-6);
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--border);
+  }
+  .log-head h3 {
+    margin: 0; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-3);
+  }
+  .log-head .log-ctrls { display: flex; gap: 4px; align-items: center; }
+  .log-viewer {
+    max-height: 420px;
+    overflow: auto;
+    padding: 0;
+    background: var(--surface-sunken);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--r-3) var(--r-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .log-viewer .log-pre {
+    margin: 0;
+    padding: 12px 16px 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-2);
+  }
+  .log-viewer::-webkit-scrollbar { width: 10px; height: 10px; }
+  .log-viewer::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 2px solid var(--surface-sunken); }
+  .log-viewer::-webkit-scrollbar-track { background: transparent; }
+
+  .empty {
+    padding: var(--s-8) var(--s-6);
+    text-align: center;
+    color: var(--text-3);
+  }
+  .empty .empty-art {
+    width: 56px; height: 56px;
+    border-radius: var(--r-3);
+    background: var(--surface-sunken);
+    border: 1px dashed var(--border-strong);
+    display: grid; place-items: center;
+    margin: 0 auto var(--s-4);
+    color: var(--text-3);
+  }
+  .empty h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
+  .empty p { margin: 0; font-size: 13px; max-width: 40ch; margin-inline: auto; }
+
+  .err-banner {
+    margin: 0 var(--s-6) var(--s-5);
+    padding: 12px var(--s-4);
+    background: var(--danger-weak);
+    border: 1px solid color-mix(in oklch, var(--danger) 30%, var(--border));
+    border-radius: var(--r-2);
+    color: var(--danger);
+    font-size: 13px;
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .err-banner strong { font-weight: 600; }
+  .err-banner code { background: color-mix(in oklch, var(--danger) 10%, transparent); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); }
+
+  .timing {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0 var(--s-6) var(--s-4);
+    gap: var(--s-4);
+  }
+  .timing-item .tl {
+    font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+  }
+  .timing-item .tv {
+    font-size: 15px; font-family: var(--font-mono); color: var(--text); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .timing-item .tv.sm { font-size: 13px; }
+
+  .tweaks {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    width: 280px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-3);
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+    display: none;
+    overflow: hidden;
+  }
+  .tweaks.open { display: block; }
+  .tweaks-head {
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .tweaks-head h4 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
+  .tweaks-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow: auto; }
+  .tw-row { display: flex; flex-direction: column; gap: 6px; }
+  .tw-row label { font-size: 12px; color: var(--text-2); }
+  .seg {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    background: var(--surface-sunken);
+    border-radius: var(--r-2);
+    border: 1px solid var(--border);
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg button {
+    background: transparent; border: 0; padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 12px; color: var(--text-2); font-weight: 500;
+  }
+  .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .hue-presets { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 2px; }
+  .hue-presets button {
+    height: 22px; border-radius: 5px; border: 1px solid var(--border);
+    cursor: pointer; padding: 0;
+  }
+  .hue-presets button.on { box-shadow: 0 0 0 2px var(--text); }
+
+  .hide { display: none !important; }
+  .grow { flex: 1; min-width: 0; }
+  .icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .api-banner {
+    margin: var(--s-4) var(--s-6) 0;
+    padding: 10px 12px;
+    border-radius: var(--r-2);
+    border: 1px solid color-mix(in oklch, var(--danger) 35%, var(--border));
+    background: var(--danger-weak);
+    color: var(--danger);
+    font-size: 13px;
+  }
+  </style>
+</head>
+<body data-theme="light" data-layout="two-col" data-density="comfortable">
+<div class="app">
+  <aside class="sidebar" aria-label="Job history">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <div class="brand-name">Course Gen</div>
+        <div class="brand-sub">batch-runner v5</div>
+      </div>
+    </div>
+    <div class="side-label">
+      <span>Recent jobs</span>
+      <span id="hist-count">0</span>
+    </div>
+    <div class="history" id="history-list"></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Course Generator</h1>
+        <p class="sub">Server-side PDF → scripts → slideshow → HeyGen. Polls <span class="inline-code">GET /api/jobs/…</span> every 2s.</p>
+      </div>
+      <div class="topbar-right">
+        <button type="button" class="btn btn-sm" id="btn-tweaks" aria-expanded="false" aria-controls="tweaks-panel">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="10" cy="6" r="2" fill="currentColor"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="18" r="2" fill="currentColor"/></svg>
+          Tweaks
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="form-col" aria-labelledby="new-job-title">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="new-job-title">New job</h2>
+          </div>
+          <div class="card-body">
+            <form id="job-form" method="dialog">
+              <div class="field">
+                <label class="label" for="course_title">Course title <span class="help">required</span></label>
+                <input type="text" id="course_title" name="course_title" value="Start Your Own Food Business" autocomplete="off" required />
+                <div class="help">Used for stage4 <span class="inline-code">--course-title</span> and downstream naming.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="pdf">Server PDF path <span class="help">optional</span></label>
+                <input type="text" id="pdf" name="pdf" class="mono" placeholder="C:\path\to\book.pdf" autocomplete="off" />
+                <div class="help">Absolute path on this machine. Empty = first PDF in <span class="inline-code">stage4/input</span>.</div>
+              </div>
+              <div class="field">
+                <label class="label">Mode</label>
+                <div class="radio-group" id="mode-group">
+                  <label class="radio-card selected" data-mode="full">
+                    <input type="radio" name="mode" value="full" checked />
+                    <span class="r" aria-hidden="true"></span>
+                    <div>
+                      <div class="rc-title">Full run</div>
+                      <div class="rc-desc">Extract, scripts, slideshow, then HeyGen avatars.</div>
+                    </div>
+                  </label>
+                  <label class="radio-card" data-mode="sample">
+                    <input type="radio" name="mode" value="sample" />
+                    <span class="r" aria-hidden="true"></span>
+                    <div>
+                      <div class="rc-title">Generate sample material</div>
+                      <div class="rc-desc">Through slideshow only — no HeyGen (faster, no avatar API).</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-ghost" id="btn-reset" disabled>Stop current build</button>
+            <div style="display:flex;gap:12px;align-items:center">
+              <span class="help" id="form-status" style="color:var(--text-3);font-size:12px">Ready</span>
+              <button type="submit" form="job-form" class="btn btn-accent" id="go">
+                <svg class="icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8V4z"/></svg>
+                Start job
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="status-col" aria-label="Job status">
+        <div class="card" id="status-card">
+          <div class="api-banner hide" id="api-err" role="alert"></div>
+          <div id="block-empty">
+            <div class="card-header">
+              <h2>Status</h2>
+              <span class="hint">awaiting job</span>
+            </div>
+            <div class="empty">
+              <div class="empty-art" aria-hidden="true">
+                <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              </div>
+              <h3>No job running</h3>
+              <p>Enter a course title, pick a mode, then <strong>Start job</strong>. Status and logs appear here; recent runs stay in the sidebar.</p>
+            </div>
+            <div class="stepper" aria-hidden="true">
+              <div class="steps" id="steps-preview"></div>
+            </div>
+          </div>
+
+          <div id="block-job" class="hide">
+            <div class="status-head">
+              <div>
+                <span class="status-badge" id="job-badge"><span id="job-badge-icon"></span><span id="job-badge-label">—</span></span>
+              </div>
+              <div class="status-meta">
+                <div class="status-title" id="job-step-line">—</div>
+                <div class="status-id"><code id="jid"></code><span>·</span><span>mode:</span> <code id="job-mode-label"></code></div>
+              </div>
+              <div class="status-right">
+                <span id="job-poll-meta">—</span>
+                <span>poll 2s</span>
+              </div>
+            </div>
+            <div class="timing">
+              <div class="timing-item">
+                <div class="tl">Elapsed</div>
+                <div class="tv" id="timing-elapsed">—</div>
+              </div>
+              <div class="timing-item">
+                <div class="tl">Log lines</div>
+                <div class="tv sm" id="timing-lines">0</div>
+              </div>
+              <div class="timing-item">
+                <div class="tl">Last update</div>
+                <div class="tv sm" id="timing-updated">—</div>
+              </div>
+            </div>
+            <div class="err-banner hide" id="err-line" role="alert">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <div>
+                <strong id="err-text"></strong>
+                <div style="margin-top:4px;font-size:12px;opacity:.9">Check the log, fix the issue, then start again. Job ids are only kept in server memory until restart.</div>
+              </div>
+            </div>
+            <div class="stepper">
+              <div class="steps" id="steps-job"></div>
+            </div>
+            <div class="log-head">
+              <h3>Log</h3>
+              <div class="log-ctrls">
+                <button type="button" class="btn btn-sm btn-ghost" id="copy-log">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+                  <span id="copy-label">Copy log</span>
+                </button>
+              </div>
+            </div>
+            <div class="log-viewer" id="log-scroller"><pre class="log-pre" id="log" role="log"></pre></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="tweaks" id="tweaks-panel" role="dialog" aria-label="Display tweaks">
+  <div class="tweaks-head">
+    <h4>Tweaks</h4>
+    <button type="button" class="btn btn-sm btn-ghost" id="tweaks-close" aria-label="Close tweaks">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div class="tweaks-body">
+    <div class="tw-row">
+      <label for="tw-theme">Theme</label>
+      <div class="seg" id="tw-theme-seg" role="group">
+        <button type="button" data-value="light" class="on">Light</button>
+        <button type="button" data-value="dark">Dark</button>
+      </div>
+    </div>
+    <div class="tw-row">
+      <label for="tw-hue">Accent hue <span style="color:var(--text-3);font-family:var(--font-mono);font-size:11px" id="tw-hue-label">h65</span></label>
+      <input type="range" id="tw-hue" min="0" max="360" step="1" value="65" />
+      <div class="hue-presets" id="hue-presets"></div>
+    </div>
+    <div class="tw-row">
+      <label>Layout</label>
+      <div class="seg" id="tw-layout-seg" role="group">
+        <button type="button" data-value="two-col" class="on">2-column</button>
+        <button type="button" data-value="stacked">Stacked</button>
+      </div>
+    </div>
+    <div class="tw-row">
+      <label>Density</label>
+      <div class="seg" id="tw-density-seg" role="group">
+        <button type="button" data-value="comfortable" class="on">Comfy</button>
+        <button type="button" data-value="compact">Compact</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STAGES = [
+    { id: 'extract', label: 'Extract', sub: 'PDF → text' },
+    { id: 'scripts', label: 'Scripts', sub: 'sections & prompts' },
+    { id: 'stage1', label: 'Slideshow', sub: 'TTS + slide bake' },
+    { id: 'heygen', label: 'HeyGen', sub: 'avatar render' },
+  ];
+  const MODE_STAGES = {
+    full: new Set(['extract', 'scripts', 'stage1', 'heygen']),
+    sample: new Set(['extract', 'scripts', 'stage1']),
+    from_stage1: new Set(['scripts', 'stage1', 'heygen']),
+    heygen_only: new Set(['heygen']),
+    no_heygen: new Set(['extract', 'scripts', 'stage1']),
+  };
+
+  const HISTORY_KEY = 'stage5_job_history';
+  const TWEAK_KEY = 'stage5_tweaks';
+  const MAX_HIST = 40;
+
+  const $ = (id) => document.getElementById(id);
+
+  let pollTimer = null;
+  let tickTimer = null;
+  let activeJobId = null;
+  let lastJobPayload = null;
+  let lastPollAt = 0;
+  let jobStartedAt = 0;
+  let nowTs = Date.now();
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+  }
+  function saveHistory(arr) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0, MAX_HIST)));
+  }
+  function upsertHistory(patch) {
+    const h = loadHistory();
+    const i = h.findIndex((x) => x.id === patch.id);
+    if (i >= 0) h[i] = { ...h[i], ...patch };
+    else h.unshift({ ...patch });
+    saveHistory(h);
+    renderHistory();
+  }
+  function getHistItem(id) {
+    return loadHistory().find((x) => x.id === id) || null;
+  }
+
+  function fmtDuration(ms) {
+    if (ms == null || ms < 0) return '—';
+    if (ms < 1000) return ms + 'ms';
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    if (m < 60) return m + 'm ' + String(rs).padStart(2, '0') + 's';
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return h + 'h ' + String(rm).padStart(2, '0') + 'm';
+  }
+  function fmtAgo(ts) {
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  function getSelectedMode() {
+    const el = document.querySelector('input[name="mode"]:checked');
+    return el ? el.value : 'full';
+  }
+
+  function failStepFromCurrent(cs) {
+    const s = String(cs || '');
+    if (s.includes('batch_stage3')) return 'heygen';
+    if (s.includes('batch_stage1')) return 'stage1';
+    if (s.includes('run_stage4')) return 'extract';
+    return 'stage1';
+  }
+
+  function computeSteps(mode, job) {
+    const inc = MODE_STAGES[mode] || MODE_STAGES.full;
+    const base = STAGES.map((s) => ({
+      id: s.id,
+      label: s.label,
+      sub: s.sub,
+      included: inc.has(s.id),
+    }));
+
+    if (!job) {
+      return base.map((s) => ({
+        ...s,
+        state: s.included ? 'idle' : 'skipped',
+      }));
+    }
+
+    const { status, current_step, error } = job;
+
+    if (status === 'complete') {
+      return base.map((s) => ({ ...s, state: s.included ? 'done' : 'skipped' }));
+    }
+
+    if (status === 'queued') {
+      return base.map((s) => {
+        if (!s.included) return { ...s, state: 'skipped' };
+        return { ...s, state: 'queued' };
+      });
+    }
+
+    if (status === 'error') {
+      const failId = failStepFromCurrent(current_step);
+      const order = STAGES.map((x) => x.id).filter((id) => inc.has(id));
+      let fi = order.indexOf(failId);
+      if (fi < 0) fi = Math.max(0, order.length - 1);
+      return base.map((s) => {
+        if (!s.included) return { ...s, state: 'skipped' };
+        const mi = order.indexOf(s.id);
+        if (mi < fi) return { ...s, state: 'done' };
+        if (mi === fi) return { ...s, state: 'error' };
+        return { ...s, state: 'queued' };
+      });
+    }
+
+    const cs = current_step;
+    if (cs === 'run_stage4') {
+      return base.map((s) => {
+        if (!s.included) return { ...s, state: 'skipped' };
+        if (s.id === 'extract') return { ...s, state: 'running' };
+        if (s.id === 'scripts') return { ...s, state: 'queued' };
+        if (s.id === 'stage1' || s.id === 'heygen') return { ...s, state: 'queued' };
+        return { ...s, state: 'queued' };
+      });
+    }
+    if (cs === 'batch_stage1') {
+      return base.map((s) => {
+        if (!s.included) return { ...s, state: 'skipped' };
+        if (s.id === 'extract' || s.id === 'scripts') return { ...s, state: 'done' };
+        if (s.id === 'stage1') return { ...s, state: 'running' };
+        if (s.id === 'heygen') return { ...s, state: 'queued' };
+        return { ...s, state: 'queued' };
+      });
+    }
+    if (cs === 'batch_stage3') {
+      return base.map((s) => {
+        if (!s.included) return { ...s, state: 'skipped' };
+        if (s.id === 'heygen') return { ...s, state: 'running' };
+        if (s.included) return { ...s, state: 'done' };
+        return { ...s, state: 'skipped' };
+      });
+    }
+
+    return base.map((s) => ({ ...s, state: s.included ? 'queued' : 'skipped' }));
+  }
+
+  function stepMeta(s) {
+    if (s.state === 'done') return 'done';
+    if (s.state === 'running') return 'in progress…';
+    if (s.state === 'error') return 'failed';
+    if (s.state === 'skipped') return s.sub + ' · skipped';
+    if (s.state === 'queued') return s.sub;
+    return s.sub;
+  }
+
+  function renderSteps(container, steps) {
+    const checkSvg =
+      '<svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+    container.innerHTML = steps
+      .map((s, i) => {
+        const cls = ['step'];
+        if (s.state === 'skipped') cls.push('skipped');
+        if (s.state === 'done') cls.push('done');
+        if (s.state === 'running') cls.push('running');
+        if (s.state === 'error') cls.push('error');
+        let inner = String(i + 1);
+        if (s.state === 'done') inner = checkSvg;
+        if (s.state === 'error') inner = '!';
+        return (
+          '<div class="' +
+          cls.join(' ') +
+          '">' +
+          '<div class="step-head">' +
+          '<div class="step-num">' +
+          inner +
+          '</div>' +
+          '<div class="step-label">' +
+          s.label +
+          '</div>' +
+          '</div>' +
+          '<div class="step-meta">' +
+          stepMeta(s) +
+          '</div>' +
+          '</div>'
+        );
+      })
+      .join('');
+  }
+
+  function refreshPreviewStepper() {
+    const mode = getSelectedMode();
+    const steps = computeSteps(mode, null);
+    renderSteps($('steps-preview'), steps);
+  }
+
+  function setRunning(r) {
+    $('go').disabled = r;
+    $('btn-reset').disabled = r;
+    $('form-status').textContent = r
+      ? 'Job running — wait for it to finish'
+      : 'Ready';
+    document.querySelectorAll('#mode-group input, #course_title, #pdf').forEach((el) => {
+      el.disabled = r;
+    });
+    document.querySelectorAll('.radio-card').forEach((lab) => {
+      lab.style.pointerEvents = r ? 'none' : '';
+      lab.style.opacity = r ? '0.85' : '';
+    });
+  }
+
+  function stopPoll() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function showEmptyPanel() {
+    $('block-empty').classList.remove('hide');
+    $('block-job').classList.add('hide');
+    activeJobId = null;
+    lastJobPayload = null;
+    stopPoll();
+    setRunning(false);
+    renderHistory();
+    refreshPreviewStepper();
+  }
+
+  function showJobPanel() {
+    $('block-empty').classList.add('hide');
+    $('block-job').classList.remove('hide');
+  }
+
+  function badgeForStatus(st) {
+    const b = $('job-badge');
+    b.className = 'status-badge ' + (st === 'running' || st === 'queued' ? (st === 'queued' ? 'queued' : 'running') : st === 'complete' ? 'complete' : st === 'error' ? 'error' : '');
+    const icon = $('job-badge-icon');
+    icon.innerHTML = '';
+    if (st === 'running' || st === 'queued') {
+      icon.innerHTML = '<span class="dot running" style="width:7px;height:7px"></span>';
+    } else if (st === 'complete') {
+      icon.innerHTML =
+        '<svg class="icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+    } else if (st === 'error') {
+      icon.innerHTML =
+        '<svg class="icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+    }
+    $('job-badge-label').textContent =
+      st === 'running' ? 'Running' : st === 'queued' ? 'Queued' : st === 'complete' ? 'Complete' : st === 'error' ? 'Failed' : st;
+  }
+
+  function applyJobPayload(j, modeFallback) {
+    lastJobPayload = j;
+    lastPollAt = Date.now();
+    const meta = getHistItem(j.id);
+    const mode = (meta && meta.mode) || modeFallback || 'full';
+    $('jid').textContent = j.id;
+    $('job-mode-label').textContent = mode;
+    const line = j.status + (j.current_step ? ' — ' + j.current_step : '');
+    $('job-step-line').textContent = line;
+    badgeForStatus(j.status);
+    const logText = j.log || '';
+    $('log').textContent = logText;
+    if (j.status === 'running') {
+      const sc = $('log-scroller');
+      requestAnimationFrame(() => {
+        sc.scrollTop = sc.scrollHeight;
+      });
+    }
+    const lines = logText ? logText.split('\n').length : 0;
+    $('timing-lines').textContent = lines.toLocaleString();
+    $('timing-updated').textContent = new Date().toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const err = j.error || '';
+    if (err) {
+      $('err-text').textContent = err;
+      $('err-line').classList.remove('hide');
+    } else {
+      $('err-line').classList.add('hide');
+      $('err-text').textContent = '';
+    }
+    const steps = computeSteps(mode, j);
+    renderSteps($('steps-job'), steps);
+    const started = (meta && meta.started) || jobStartedAt || Date.now();
+    $('timing-elapsed').textContent = fmtDuration(Date.now() - started);
+    const pollMeta = $('job-poll-meta');
+    if (j.status === 'running' || j.status === 'queued') {
+      const ago = Math.max(0, Math.floor((nowTs - lastPollAt) / 1000));
+      pollMeta.innerHTML = '<span class="updating"><span class="spin"></span>updating · ' + ago + 's ago</span>';
+    } else {
+      pollMeta.textContent = 'idle';
+    }
+  }
+
+  async function refetch(id) {
+    try {
+      const r = await fetch('/api/jobs/' + encodeURIComponent(id));
+      const j = await r.json();
+      if (!r.ok) return;
+      upsertHistory({
+        id: j.id,
+        status: j.status,
+        lastLog: j.log,
+        error: j.error,
+        current_step: j.current_step,
+      });
+      applyJobPayload(j, getHistItem(j.id) && getHistItem(j.id).mode);
+      if (j.status === 'complete' || j.status === 'error') {
+        stopPoll();
+        setRunning(false);
+      }
+    } catch { /* ignore */ }
+  }
+
+  function startPoll(id) {
+    stopPoll();
+    pollTimer = setInterval(() => refetch(id), 2000);
+  }
+
+  async function selectJob(id) {
+    $('api-err').classList.add('hide');
+    $('api-err').textContent = '';
+    activeJobId = id;
+    renderHistory();
+    const meta = getHistItem(id);
+    const modeFallback = meta && meta.mode;
+    jobStartedAt = (meta && meta.started) || Date.now();
+    try {
+      const r = await fetch('/api/jobs/' + encodeURIComponent(id));
+      const j = await r.json();
+      if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : r.statusText);
+      showJobPanel();
+      applyJobPayload(j, modeFallback);
+      if (j.status === 'running' || j.status === 'queued') {
+        setRunning(true);
+        startPoll(id);
+        refetch(id);
+      } else {
+        setRunning(false);
+        stopPoll();
+      }
+    } catch (e) {
+      const h = getHistItem(id);
+      if (h && h.lastLog != null) {
+        showJobPanel();
+        applyJobPayload(
+          {
+            id: h.id,
+            status: h.status || 'error',
+            current_step: h.current_step || null,
+            log: h.lastLog,
+            error: h.error || String(e.message || 'Job not found'),
+          },
+          h.mode
+        );
+        setRunning(false);
+      } else {
+        showJobPanel();
+        $('api-err').textContent =
+          (e && e.message) || 'Job not found. The server may have restarted.';
+        $('api-err').classList.remove('hide');
+        badgeForStatus('error');
+        $('jid').textContent = id;
+        $('job-mode-label').textContent = modeFallback || '—';
+        $('job-step-line').textContent = '—';
+        $('log').textContent = '';
+        $('err-line').classList.add('hide');
+        setRunning(false);
+      }
+    }
+  }
+
+  async function startJob(e) {
+    e.preventDefault();
+    $('api-err').classList.add('hide');
+    $('api-err').textContent = '';
+    const mode = getSelectedMode();
+    const body = {
+      course_title: $('course_title').value.trim() || 'Start Your Own Food Business',
+      pdf: $('pdf').value.trim() || null,
+      from_stage1: false,
+      heygen_only: false,
+      no_heygen: mode === 'sample',
+      force_heygen: false,
+      force_stage1: false,
+    };
+    setRunning(true);
+    stopPoll();
+    try {
+      const r = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || r.statusText);
+      $('api-err').classList.add('hide');
+      $('api-err').textContent = '';
+      activeJobId = j.id;
+      jobStartedAt = Date.now();
+      upsertHistory({
+        id: j.id,
+        title: body.course_title,
+        mode,
+        status: j.status,
+        started: jobStartedAt,
+        current_step: j.current_step,
+        lastLog: j.log,
+        error: j.error,
+      });
+      showJobPanel();
+      applyJobPayload(j, mode);
+      startPoll(j.id);
+      refetch(j.id);
+    } catch (err) {
+      setRunning(false);
+      stopPoll();
+      $('block-empty').classList.remove('hide');
+      $('block-job').classList.add('hide');
+      activeJobId = null;
+      lastJobPayload = null;
+      renderHistory();
+      $('api-err').textContent = err.message || String(err);
+      $('api-err').classList.remove('hide');
+      refreshPreviewStepper();
+    }
+  }
+
+  function renderHistory() {
+    const raw = loadHistory();
+    $('hist-count').textContent = String(raw.length);
+    const list = $('history-list');
+    list.innerHTML = '';
+    raw.forEach((j) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hist-item';
+      b.setAttribute('aria-current', activeJobId === j.id ? 'true' : 'false');
+      const st = j.status || 'queued';
+      b.innerHTML =
+        '<span class="dot ' +
+        (st === 'running' || st === 'queued' ? (st === 'queued' ? 'queued' : 'running') : st) +
+        '"></span><div class="grow"><div class="hist-title">' +
+        escapeHtml(j.title || j.id) +
+        '</div><div class="hist-meta">' +
+        escapeHtml(j.id.slice(0, 14)) +
+        ' · ' +
+        fmtAgo(j.started || Date.now()) +
+        '</div></div>';
+      b.addEventListener('click', () => selectJob(j.id));
+      list.appendChild(b);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function syncRadioCards() {
+    document.querySelectorAll('.radio-card').forEach((lab) => {
+      const inp = lab.querySelector('input[type="radio"]');
+      if (!inp) return;
+      lab.classList.toggle('selected', inp.checked);
+    });
+    refreshPreviewStepper();
+  }
+
+  function applyAccent(h) {
+    const hue = Number(h) || 65;
+    document.documentElement.style.setProperty('--accent', 'oklch(0.74 0.13 ' + hue + ')');
+    document.documentElement.style.setProperty('--accent-weak', 'oklch(0.96 0.04 ' + (hue + 10) + ')');
+    document.documentElement.style.setProperty('--accent-ink', 'oklch(0.38 0.10 ' + (hue - 10) + ')');
+    $('tw-hue-label').textContent = 'h' + hue;
+    document.querySelectorAll('.hue-presets button').forEach((b) => {
+      b.classList.toggle('on', Number(b.dataset.hue) === hue);
+    });
+  }
+
+  function saveTweaks() {
+    const payload = {
+      theme: document.body.dataset.theme,
+      accentHue: Number($('tw-hue').value),
+      layout: document.body.dataset.layout,
+      density: document.body.dataset.density,
+    };
+    localStorage.setItem(TWEAK_KEY, JSON.stringify(payload));
+  }
+
+  function loadTweaks() {
+    try {
+      const t = JSON.parse(localStorage.getItem(TWEAK_KEY) || '{}');
+      if (t.theme === 'light' || t.theme === 'dark') {
+        document.body.dataset.theme = t.theme;
+        document.querySelectorAll('#tw-theme-seg button').forEach((b) => {
+          b.classList.toggle('on', b.dataset.value === t.theme);
+        });
+      }
+      if (typeof t.accentHue === 'number') {
+        $('tw-hue').value = String(t.accentHue);
+        applyAccent(t.accentHue);
+      } else applyAccent(65);
+      if (t.layout === 'two-col' || t.layout === 'stacked') {
+        document.body.dataset.layout = t.layout;
+        document.querySelectorAll('#tw-layout-seg button').forEach((b) => {
+          b.classList.toggle('on', b.dataset.value === t.layout);
+        });
+      }
+      if (t.density === 'comfortable' || t.density === 'compact') {
+        document.body.dataset.density = t.density;
+        document.querySelectorAll('#tw-density-seg button').forEach((b) => {
+          b.classList.toggle('on', b.dataset.value === t.density);
+        });
+      }
+    } catch {
+      applyAccent(65);
+    }
+  }
+
+  function setupTweaks() {
+    const presets = [15, 65, 140, 200, 260, 320];
+    const hp = $('hue-presets');
+    presets.forEach((h) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.hue = String(h);
+      b.style.background = 'oklch(0.74 0.13 ' + h + ')';
+      b.addEventListener('click', () => {
+        $('tw-hue').value = String(h);
+        applyAccent(h);
+        saveTweaks();
+      });
+      hp.appendChild(b);
+    });
+    $('tw-hue').addEventListener('input', () => {
+      applyAccent($('tw-hue').value);
+      saveTweaks();
+    });
+    document.querySelectorAll('#tw-theme-seg button').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.body.dataset.theme = b.dataset.value;
+        document.querySelectorAll('#tw-theme-seg button').forEach((x) => x.classList.toggle('on', x === b));
+        saveTweaks();
+      });
+    });
+    document.querySelectorAll('#tw-layout-seg button').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.body.dataset.layout = b.dataset.value;
+        document.querySelectorAll('#tw-layout-seg button').forEach((x) => x.classList.toggle('on', x === b));
+        saveTweaks();
+      });
+    });
+    document.querySelectorAll('#tw-density-seg button').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.body.dataset.density = b.dataset.value;
+        document.querySelectorAll('#tw-density-seg button').forEach((x) => x.classList.toggle('on', x === b));
+        saveTweaks();
+      });
+    });
+    const panel = $('tweaks-panel');
+    $('btn-tweaks').addEventListener('click', () => {
+      const open = !panel.classList.contains('open');
+      panel.classList.toggle('open', open);
+      $('btn-tweaks').setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    $('tweaks-close').addEventListener('click', () => {
+      panel.classList.remove('open');
+      $('btn-tweaks').setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  document.querySelectorAll('#mode-group input').forEach((inp) => {
+    inp.addEventListener('change', syncRadioCards);
+  });
+  document.querySelectorAll('.radio-card').forEach((lab) => {
+    lab.addEventListener('click', () => {
+      const inp = lab.querySelector('input[type="radio"]');
+      if (inp && !inp.disabled) {
+        inp.checked = true;
+        syncRadioCards();
+      }
+    });
+  });
+  $('job-form').addEventListener('submit', startJob);
+  $('btn-reset').addEventListener('click', () => {
+    $('api-err').classList.add('hide');
+    $('api-err').textContent = '';
+    $('course_title').value = 'Start Your Own Food Business';
+    $('pdf').value = '';
+    document.querySelector('input[name="mode"][value="full"]').checked = true;
+    syncRadioCards();
+    showEmptyPanel();
+  });
+
+  $('copy-log').addEventListener('click', async () => {
+    const t = $('log').textContent || '';
+    try {
+      await navigator.clipboard.writeText(t);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    $('copy-label').textContent = 'Copied';
+    setTimeout(() => {
+      $('copy-label').textContent = 'Copy log';
+    }, 1600);
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!$('go').disabled) $('job-form').requestSubmit();
+    }
+  });
+
+  tickTimer = setInterval(() => {
+    nowTs = Date.now();
+    if (lastJobPayload && (lastJobPayload.status === 'running' || lastJobPayload.status === 'queued')) {
+      applyJobPayload(lastJobPayload, getHistItem(lastJobPayload.id) && getHistItem(lastJobPayload.id).mode);
+    }
+  }, 500);
+
+  setupTweaks();
+  loadTweaks();
+  syncRadioCards();
+  renderHistory();
+  refreshPreviewStepper();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Pinned; align with stage2 where possible
+openai==1.59.3
+pymupdf==1.24.14
+python-dotenv==1.0.1

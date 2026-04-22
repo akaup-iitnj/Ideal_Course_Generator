@@ -1,0 +1,31 @@
+# Secrets — never commit real keys
+.env
+**/.env
+*.local
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+
+# Generated outputs (all stages)
+**/output/
+
+# Large media / intermediate audio
+*.mp4
+*.mp3
+
+# Source PDFs (copyright; keep local). Use samples/ for tiny public examples if needed.
+**/input/**/*.pdf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
