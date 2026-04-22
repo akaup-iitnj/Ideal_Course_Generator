@@ -2,19 +2,26 @@
 Stage 5 web UI: FastAPI + HTML form + JSON polling (no SSE).
 
   pip install -r requirements.txt
-  uvicorn app:app --host 0.0.0.0 --port 8755
+  python -m uvicorn app:app --host 0.0.0.0 --port 8755
 
-Then open http://127.0.0.1:8755/ . For Cloudflare later: tunnel to this port or run behind a reverse proxy;
-keep API keys only in .env on the server, not in the browser.
+Open http://127.0.0.1:8755/ locally. To share with someone off your machine, run a tunnel to port 8755
+(Cloudflare: `cloudflared tunnel --url http://127.0.0.1:8755`, or ngrok, etc.). The UI shows a
+copyable link when the request is not localhost, or set STAGE5_PUBLIC_URL in stage5/.env to your tunnel URL.
+
+Keep API keys only in .env on the machine running the pipeline, not in the browser. Anyone who has the
+public link can start jobs on your PC — use tunnel passwords / turn the tunnel off after demos if needed.
 """
 
 from __future__ import annotations
 
+import os
 import threading
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
@@ -24,8 +31,22 @@ from pipeline import PipelineError, run_pipeline, validate_options
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+load_dotenv(HERE / ".env")
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 app = FastAPI(title="Stage 5 — Course batch")
+
+
+def _share_url(request: Request) -> str:
+    """Public URL to show for sharing (tunnel). Empty when only localhost is in use."""
+    env = os.getenv("STAGE5_PUBLIC_URL", "").strip().rstrip("/")
+    if env:
+        return env
+    raw_base = str(request.base_url).rstrip("/")
+    parsed = urlparse(raw_base)
+    host = (parsed.hostname or "").lower()
+    if host in ("127.0.0.1", "localhost", ""):
+        return ""
+    return raw_base
 
 JOBS: dict[str, dict[str, Any]] = {}
 LOCK = threading.Lock()
@@ -112,7 +133,7 @@ def _run_job(jid: str, body: JobCreate) -> None:
 async def index(request: Request) -> Any:
     return templates.TemplateResponse(
         "index.html",
-        {"request": request},
+        {"request": request, "share_url": _share_url(request)},
     )
 
 

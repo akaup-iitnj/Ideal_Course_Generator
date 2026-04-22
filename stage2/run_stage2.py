@@ -226,6 +226,26 @@ def run_script_only(topic: str, extracted_root: Path, out_json: Path) -> None:
         newline="\n",
     )
     print(f"Wrote {out_json.resolve()}")
+    _try_write_uploader_reference(out_json.parent, topic)
+
+
+def _try_write_uploader_reference(output_dir: Path, topic: str) -> None:
+    """stage4/uploader_reference.py: single-section copy for one lesson (stage2 → stage1)."""
+    stage4 = Path(__file__).resolve().parent.parent / "stage4" / "uploader_reference.py"
+    if not stage4.is_file():
+        return
+    s4 = stage4.parent
+    if str(s4) not in sys.path:
+        sys.path.insert(0, str(s4))
+    from uploader_reference import build_single_lesson_uploader_text
+
+    u = output_dir / "uploader_reference.txt"
+    u.write_text(
+        build_single_lesson_uploader_text(topic, video_folder_rel="stage1/output"),
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"Wrote {u.resolve()}")
 
 
 def run_full(topic: str, input_dir: Path, extracted_root: Path, out_json: Path) -> None:

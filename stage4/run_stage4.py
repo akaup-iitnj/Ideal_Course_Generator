@@ -4,8 +4,17 @@ per-video script.json for stage1 (6–8 slides, ~3 min spoken per video).
 
   python run_stage4.py
       # default: first PDF in input/ -> output/extracted/ + output/course_outline.json
+      #   + output/uploader_reference.txt (Udemy section/lecture copy-paste + file paths)
   python run_stage4.py --pdf "C:\path\book.pdf"
   python run_stage4.py --extract-only
+  python run_stage4.py --uploader-only
+      # rewrites uploader_reference.txt from course_outline.json + optional landing/course_landing.json
+  python run_stage4.py --landing-only
+      # regenerate landing page text + course image + uploader (reads outline + extracted text; uses API)
+  python run_stage4.py --no-landing
+      # outline only: skip landing page + gpt-image-2 / DALL·E image
+  python run_stage4.py --no-landing-images
+      # landing text only; no image API call
   python run_stage4.py --all-scripts
       # after outline, writes output/m##_v##/script.json (20 files; many API calls)
 
@@ -25,6 +34,9 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+
+from course_landing import write_landing_artifacts
+from uploader_reference import build_uploader_text_from_outline, load_landing_dict
 
 # Match stage2: cap for one prompt
 MAX_SOURCE_CHARS: int = 100_000
@@ -465,6 +477,26 @@ def _parse() -> argparse.Namespace:
         action="store_true",
         help="After outline, generate 20x script.json (expensive).",
     )
+    p.add_argument(
+        "--uploader-only",
+        action="store_true",
+        help="Re-read output/course_outline.json and write uploader_reference.txt only (no API, no PDF).",
+    )
+    p.add_argument(
+        "--landing-only",
+        action="store_true",
+        help="Regenerate landing/course_landing.json (+ image) and uploader from existing outline + extract.",
+    )
+    p.add_argument(
+        "--no-landing",
+        action="store_true",
+        help="After outline, skip course landing page generation (text + image).",
+    )
+    p.add_argument(
+        "--no-landing-images",
+        action="store_true",
+        help="With landing: generate text only, no gpt-image-2 / DALL·E image.",
+    )
     return p.parse_args()
 
 
@@ -474,6 +506,59 @@ if __name__ == "__main__":
     here.mkdir(parents=True, exist_ok=True)
     (here / "input").mkdir(parents=True, exist_ok=True)
     out_root.mkdir(parents=True, exist_ok=True)
+
+    if args.uploader_only:
+        outline_path = out_root / "course_outline.json"
+        if not outline_path.is_file():
+            raise SystemExit(
+                f"Missing {outline_path}. Run without --uploader-only to generate the outline first."
+            )
+        outline = json.loads(
+            outline_path.read_text(encoding="utf-8", errors="strict")
+        )
+        landing = load_landing_dict(out_root)
+        ur = out_root / "uploader_reference.txt"
+        ur.write_text(
+            build_uploader_text_from_outline(outline, landing=landing),
+            encoding="utf-8",
+            newline="\n",
+        )
+        print(f"Wrote {ur.resolve()}")
+        raise SystemExit(0)
+
+    if args.landing_only:
+        outline_path = out_root / "course_outline.json"
+        if not outline_path.is_file():
+            raise SystemExit(
+                f"Missing {outline_path}. Run a normal extract+outline first."
+            )
+        outline = json.loads(
+            outline_path.read_text(encoding="utf-8", errors="strict")
+        )
+        stem = str(outline.get("extracted_stem") or "").strip()
+        if not stem:
+            raise SystemExit("outline has no extracted_stem; re-run a full stage4 to rebuild outline.")
+        source = _collect_source_text_for_stem(ex_root, stem)
+        if not source:
+            raise SystemExit("No extracted text for that stem; re-run extract.")
+        print("Regenerating course landing (API: text + optional image) ...")
+        client = _openai_client()
+        write_landing_artifacts(
+            client,
+            source,
+            outline,
+            out_root / "landing",
+            with_images=not args.no_landing_images,
+        )
+        landing = load_landing_dict(out_root)
+        ur = out_root / "uploader_reference.txt"
+        ur.write_text(
+            build_uploader_text_from_outline(outline, landing=landing),
+            encoding="utf-8",
+            newline="\n",
+        )
+        print(f"Wrote {ur.resolve()}")
+        raise SystemExit(0)
 
     pdf: Path | None = args.pdf
     if not pdf:
@@ -508,6 +593,31 @@ if __name__ == "__main__":
         newline="\n",
     )
     print(f"Wrote {outline_path.resolve()}")
+
+    landing: dict[str, Any] | None = None
+    if not args.no_landing:
+        print(
+            "Generating course landing page copy + course image (see output/landing/) ...",
+        )
+        client = _openai_client()
+        write_landing_artifacts(
+            client,
+            source,
+            outline,
+            out_root / "landing",
+            with_images=not args.no_landing_images,
+        )
+        landing = load_landing_dict(out_root)
+    else:
+        print("Skipping landing page generation (--no-landing).")
+
+    ur_path = out_root / "uploader_reference.txt"
+    ur_path.write_text(
+        build_uploader_text_from_outline(outline, landing=landing),
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"Wrote {ur_path.resolve()}")
 
     if args.all_scripts:
         print("Generating per-lesson script.json (20 API calls)...")
