@@ -102,6 +102,18 @@ Open `http://127.0.0.1:8755/`. Keep API keys only in server-side `.env` files, n
 - Before sharing this repo or opening a pull request, confirm **no real keys** are in tracked files: e.g. `git grep -i sk-` or search for `OPENAI_API_KEY=` / `HEYGEN_API_KEY=` after staging.
 - If `.env` files with real keys ever touched a copy that was shared or logged, **rotate** those keys in the [OpenAI](https://platform.openai.com/api-keys) and HeyGen dashboards and update your local `.env` only.
 
+### First push to GitHub
+
+1. Create an **empty** repository on GitHub (no README, if you already have one locally).
+2. From the repo root:
+
+```bash
+git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
+git push -u origin main
+```
+
+Use SSH instead of HTTPS if that is how you authenticate. After the first push, confirm on GitHub that **`.env` files and `output/` do not appear** in the file tree.
+
 ## UI design notes
 
 For customizing the stage 5 web template, see [stage5/DESIGN_HANDOFF.md](stage5/DESIGN_HANDOFF.md) and [stage5/CLAUDE_DESIGN_PROMPT.md](stage5/CLAUDE_DESIGN_PROMPT.md).
