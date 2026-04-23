@@ -15,6 +15,7 @@ public link can start jobs on your PC — use tunnel passwords / turn the tunnel
 from __future__ import annotations
 
 import os
+import re
 import threading
 import uuid
 from pathlib import Path
@@ -22,15 +23,17 @@ from typing import Any
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from pipeline import PipelineError, run_pipeline, validate_options
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+STAGE4_INPUT = ROOT / "stage4" / "input"
+MAX_PDF_BYTES = 100 * 1024 * 1024
 load_dotenv(HERE / ".env")
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 app = FastAPI(title="Stage 5 — Course batch")
@@ -53,9 +56,18 @@ LOCK = threading.Lock()
 MAX_LOG = 14_000
 
 
+def _safe_client_pdf_name(name: str) -> str:
+    base = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", (name or "upload").strip()) or "upload"
+    if not base.lower().endswith(".pdf"):
+        base = f"{base}.pdf"
+    return base[:200]
+
+
 class JobCreate(BaseModel):
     course_title: str = "Start Your Own Food Business"
     pdf: str | None = None
+    num_modules: int = Field(default=5, ge=1, le=30)
+    duration_hours: int = Field(default=1, ge=1, le=40)
     from_stage1: bool = False
     heygen_only: bool = False
     no_heygen: bool = False
@@ -103,6 +115,8 @@ def _run_job(jid: str, body: JobCreate) -> None:
             no_heygen=body.no_heygen,
             course_title=body.course_title,
             pdf=pdf_path,
+            num_modules=body.num_modules,
+            duration_hours=body.duration_hours,
             force_heygen=body.force_heygen,
             force_stage1=body.force_stage1,
             on_step=on_step,
@@ -127,6 +141,23 @@ def _run_job(jid: str, body: JobCreate) -> None:
             if jid in JOBS:
                 JOBS[jid]["status"] = "error"
                 JOBS[jid]["error"] = repr(e)
+
+
+@app.post("/api/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)) -> Any:
+    """Save an uploaded PDF to stage4/input/ and return an absolute path for the job."""
+    fn = (file.filename or "").strip()
+    if not fn.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must be a .pdf")
+    raw = await file.read()
+    if len(raw) > MAX_PDF_BYTES:
+        raise HTTPException(
+            status_code=400, detail="File too large (max 100 MB)"
+        )
+    STAGE4_INPUT.mkdir(parents=True, exist_ok=True)
+    dest = (STAGE4_INPUT / _safe_client_pdf_name(fn)).resolve()
+    dest.write_bytes(raw)
+    return {"path": str(dest)}
 
 
 @app.get("/", response_class=HTMLResponse)

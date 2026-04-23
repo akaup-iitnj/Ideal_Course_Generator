@@ -220,7 +220,14 @@
   .card-body { padding: var(--s-6); }
 
   .field { display: flex; flex-direction: column; gap: 6px; }
-  .field + .field { margin-top: var(--s-5); }
+  .field + .field, .field + .field-row, .field-row + .field { margin-top: var(--s-5); }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+  }
+  @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
+  .field-row .field { margin-top: 0; }
   .field label.label {
     font-size: 13px; font-weight: 500; color: var(--text);
     display: flex; justify-content: space-between; align-items: baseline;
@@ -252,6 +259,82 @@
     box-shadow: 0 0 0 4px var(--ring);
   }
   input.mono { font-family: var(--font-mono); font-size: 13px; }
+  .inline-input {
+    display: inline-block;
+    width: auto;
+    min-width: 12rem;
+    max-width: 100%;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    border-radius: var(--r-1) !important;
+    margin-left: 2px;
+    vertical-align: middle;
+  }
+  input[type="number"].numfield {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-2);
+  }
+  input[type="number"].numfield:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--ring);
+    outline: none;
+  }
+  .dropzone {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s-4);
+    align-items: center;
+    padding: var(--s-5) var(--s-4);
+    background: var(--surface-sunken);
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--r-2);
+    cursor: pointer;
+    transition: all 140ms ease;
+  }
+  .dropzone:hover { border-color: var(--accent); background: var(--accent-weak); }
+  .dropzone:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 45%, transparent);
+  }
+  .dropzone.disabled { opacity: 0.5; pointer-events: none; }
+  .dropzone-icon {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2);
+    color: var(--text-2);
+  }
+  .dropzone-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .dropzone-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .pdf-chip {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2);
+  }
+  .pdf-icon {
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    background: var(--accent-weak);
+    border: 1px solid color-mix(in oklch, var(--accent) 28%, transparent);
+    color: var(--accent-ink);
+    border-radius: var(--r-1);
+    font-family: var(--font-mono);
+    font-size: 10px; font-weight: 600;
+  }
+  .pdf-name { font-size: 13px; font-weight: 500; word-break: break-all; line-height: 1.3; }
+  .pdf-size { font-size: 11px; font-family: var(--font-mono); color: var(--text-3); margin-top: 2px; }
 
   .radio-group { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
   @media (max-width: 720px) { .radio-group { grid-template-columns: 1fr; } }
@@ -678,9 +761,46 @@
                 <div class="help">Used for stage4 <span class="inline-code">--course-title</span> and downstream naming.</div>
               </div>
               <div class="field">
-                <label class="label" for="pdf">Server PDF path <span class="help">optional</span></label>
-                <input type="text" id="pdf" name="pdf" class="mono" placeholder="C:\path\to\book.pdf" autocomplete="off" />
-                <div class="help">Absolute path on this machine. Empty = first PDF in <span class="inline-code">stage4/input</span>.</div>
+                <label class="label" for="pdf-file-input">
+                  Reference textbook (PDF) <span class="help" id="pdf-label-state">optional</span>
+                </label>
+                <div id="pdf-dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload PDF">
+                  <div class="dropzone-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3v12" /><path d="m7 8 5-5 5 5" /><path d="M5 21h14" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="dropzone-title">Drop PDF here or click to browse</div>
+                    <div class="dropzone-sub">Saved on the server under <span class="inline-code">stage4/input</span> · max 100&nbsp;MB</div>
+                  </div>
+                </div>
+                <div id="pdf-chip" class="pdf-chip hide" aria-live="polite">
+                  <div class="pdf-icon">PDF</div>
+                  <div>
+                    <div class="pdf-name" id="pdf-file-name">—</div>
+                    <div class="pdf-size" id="pdf-file-size">—</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-ghost" id="btn-pdf-clear">Remove</button>
+                </div>
+                <input type="file" id="pdf-file-input" accept="application/pdf,.pdf" class="hide" />
+                <div class="help" style="margin-top:8px">
+                  Or a path already on this machine:
+                  <input type="text" id="pdf" name="pdf" class="mono inline-input" placeholder="C:\path\to\book.pdf" autocomplete="off" />
+                </div>
+                <div class="help">Leave upload and path empty to use the first PDF in <span class="inline-code">stage4/input</span>.</div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="label" for="duration_hours">Course duration <span class="help">hours</span></label>
+                  <input type="number" class="numfield" id="duration_hours" name="duration_hours" min="1" max="40" step="1" value="1" required />
+                  <div class="help">Target total video length; outline uses ~3&nbsp;min videos per slot.</div>
+                </div>
+                <div class="field">
+                  <label class="label" for="num_modules">Number of modules <span class="help">sections</span></label>
+                  <input type="number" class="numfield" id="num_modules" name="num_modules" min="1" max="20" step="1" value="5" required />
+                  <div class="help" id="per-module-hint">~12 min per module (indicative).</div>
+                </div>
               </div>
               <div class="field">
                 <label class="label">Mode</label>
@@ -859,6 +979,47 @@
   let lastPollAt = 0;
   let jobStartedAt = 0;
   let nowTs = Date.now();
+  let selectedPdfFile = null;
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+  function updatePdfUI() {
+    const dz = $('pdf-dropzone');
+    const chip = $('pdf-chip');
+    const st = $('pdf-label-state');
+    const pdfIn = $('pdf');
+    if (!dz || !chip) return;
+    if (selectedPdfFile) {
+      dz.classList.add('hide');
+      chip.classList.remove('hide');
+      $('pdf-file-name').textContent = selectedPdfFile.name;
+      $('pdf-file-size').textContent = fmtBytes(selectedPdfFile.size);
+      st.textContent = 'file selected';
+      if (pdfIn) pdfIn.disabled = true;
+    } else {
+      dz.classList.remove('hide');
+      chip.classList.add('hide');
+      st.textContent = 'optional';
+      if (pdfIn) pdfIn.disabled = false;
+    }
+  }
+  function clearPdfFile() {
+    selectedPdfFile = null;
+    const fi = $('pdf-file-input');
+    if (fi) fi.value = '';
+    updatePdfUI();
+  }
+  function updatePerModuleHint() {
+    const el = $('per-module-hint');
+    if (!el) return;
+    const h = Math.min(40, Math.max(1, parseInt($('duration_hours').value, 10) || 1));
+    const m = Math.min(20, Math.max(1, parseInt($('num_modules').value, 10) || 1));
+    const pm = (h * 60) / m;
+    el.textContent = '~' + pm.toFixed(0) + ' min per module (ballpark).';
+  }
 
   function loadHistory() {
     try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -1042,9 +1203,17 @@
     $('form-status').textContent = r
       ? 'Job running — wait for it to finish'
       : 'Ready';
-    document.querySelectorAll('#mode-group input, #course_title, #pdf').forEach((el) => {
-      el.disabled = r;
-    });
+    document
+      .querySelectorAll(
+        '#mode-group input, #course_title, #pdf, #pdf-file-input, #duration_hours, #num_modules'
+      )
+      .forEach((el) => {
+        el.disabled = r;
+      });
+    const dz = $('pdf-dropzone');
+    if (dz) dz.classList.toggle('disabled', r);
+    const bclr = $('btn-pdf-clear');
+    if (bclr) bclr.disabled = r;
     document.querySelectorAll('.radio-card').forEach((lab) => {
       lab.style.pointerEvents = r ? 'none' : '';
       lab.style.opacity = r ? '0.85' : '';
@@ -1221,9 +1390,34 @@
     $('api-err').classList.add('hide');
     $('api-err').textContent = '';
     const mode = getSelectedMode();
+    let pdfPath = ($('pdf').value || '').trim() || null;
+    if (selectedPdfFile) {
+      try {
+        const fd = new FormData();
+        fd.append('file', selectedPdfFile, selectedPdfFile.name);
+        const up = await fetch('/api/upload-pdf', { method: 'POST', body: fd });
+        const uj = await up.json();
+        if (!up.ok) {
+          const msg =
+            typeof uj.detail === 'string'
+              ? uj.detail
+              : (uj.detail && JSON.stringify(uj.detail)) || up.statusText;
+          throw new Error(msg);
+        }
+        pdfPath = uj.path;
+      } catch (ex) {
+        $('api-err').textContent = (ex && ex.message) || String(ex);
+        $('api-err').classList.remove('hide');
+        return;
+      }
+    }
+    const numMod = Math.min(20, Math.max(1, parseInt($('num_modules').value, 10) || 5));
+    const durH = Math.min(40, Math.max(1, parseInt($('duration_hours').value, 10) || 1));
     const body = {
       course_title: $('course_title').value.trim() || 'Start Your Own Food Business',
-      pdf: $('pdf').value.trim() || null,
+      pdf: pdfPath,
+      num_modules: numMod,
+      duration_hours: durH,
       from_stage1: false,
       heygen_only: false,
       no_heygen: mode === 'sample',
@@ -1436,10 +1630,57 @@
     $('api-err').textContent = '';
     $('course_title').value = 'Start Your Own Food Business';
     $('pdf').value = '';
+    clearPdfFile();
+    $('duration_hours').value = '1';
+    $('num_modules').value = '5';
+    updatePerModuleHint();
     document.querySelector('input[name="mode"][value="full"]').checked = true;
     syncRadioCards();
     showEmptyPanel();
   });
+
+  (function initPdfForm() {
+    const fi = $('pdf-file-input');
+    const dz = $('pdf-dropzone');
+    if (fi) {
+      fi.addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (f) {
+          selectedPdfFile = f;
+          updatePdfUI();
+        }
+      });
+    }
+    if (dz) {
+      dz.addEventListener('click', () => {
+        if ($('go').disabled) return;
+        fi && fi.click();
+      });
+      dz.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !$('go').disabled) {
+          e.preventDefault();
+          fi && fi.click();
+        }
+      });
+      dz.addEventListener('dragover', (e) => e.preventDefault());
+      dz.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if ($('go').disabled) return;
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f && /\.pdf$/i.test(f.name)) {
+          selectedPdfFile = f;
+          updatePdfUI();
+        }
+      });
+    }
+    const b = $('btn-pdf-clear');
+    if (b) b.addEventListener('click', () => clearPdfFile());
+    ['duration_hours', 'num_modules'].forEach((id) => {
+      const n = $(id);
+      if (n) n.addEventListener('input', updatePerModuleHint);
+    });
+    updatePerModuleHint();
+  })();
 
   $('copy-log').addEventListener('click', async () => {
     const t = $('log').textContent || '';

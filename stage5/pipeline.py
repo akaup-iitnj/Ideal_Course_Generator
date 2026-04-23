@@ -49,6 +49,8 @@ def run_pipeline(
     no_heygen: bool = False,
     course_title: str = "Start Your Own Food Business",
     pdf: Path | None = None,
+    num_modules: int = 5,
+    duration_hours: int = 1,
     force_heygen: bool = False,
     force_stage1: bool = False,
     on_step: Callable[[str], None] | None = None,
@@ -81,13 +83,15 @@ def run_pipeline(
         if on_step:
             on_step("run_stage4")
         cmd4 = [str(py), str(run4), "--all-scripts", "--course-title", course_title]
+        cmd4.extend(["--num-modules", str(int(num_modules))])
+        cmd4.extend(["--duration-hours", str(int(duration_hours))])
         if pdf is not None:
             pr = pdf.resolve()
             if not pr.is_file():
                 raise PipelineError(f"PDF not found: {pr}", exit_code=2)
             cmd4.extend(["--pdf", str(pr)])
         _run_subprocess(
-            cmd4, s4, "run_stage4 (extract + outline + 20x script.json)", log=log
+            cmd4, s4, "run_stage4 (extract + outline + per-lesson script.json)", log=log
         )
 
     if on_step:

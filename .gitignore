@@ -23,6 +23,9 @@ ENV/
 # Source PDFs (copyright; keep local). Use samples/ for tiny public examples if needed.
 **/input/**/*.pdf
 
+# Ad-hoc extract folders (e.g. design zip preview)
+_zip_extract/
+
 # OS / editor
 .DS_Store
 Thumbs.db

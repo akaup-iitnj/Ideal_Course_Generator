@@ -58,6 +58,18 @@ def _parse() -> argparse.Namespace:
         action="store_true",
         help="Pass --force to batch_stage1 (compatibility; stage1 always overwrites).",
     )
+    p.add_argument(
+        "--num-modules",
+        type=int,
+        default=5,
+        help="Number of course sections in the stage4 outline (default: 5).",
+    )
+    p.add_argument(
+        "--duration-hours",
+        type=int,
+        default=1,
+        help="Target course hours for outline sizing (default: 1).",
+    )
     return p.parse_args()
 
 
@@ -82,6 +94,8 @@ def main() -> None:
             no_heygen=args.no_heygen,
             course_title=args.course_title,
             pdf=pdf,
+            num_modules=args.num_modules,
+            duration_hours=args.duration_hours,
             force_heygen=args.force_heygen,
             force_stage1=args.force_stage1,
         )

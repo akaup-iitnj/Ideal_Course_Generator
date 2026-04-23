@@ -41,6 +41,31 @@ from uploader_reference import build_uploader_text_from_outline, load_landing_di
 # Match stage2: cap for one prompt
 MAX_SOURCE_CHARS: int = 100_000
 
+# Each lesson video is ~3 minutes spoken; cap per module to keep batch size reasonable
+DEFAULT_CAP_VIDEOS_PER_MODULE: int = 20
+
+
+def compute_course_shape(
+    num_modules: int,
+    duration_hours: int,
+    *,
+    cap_videos_per_module: int = DEFAULT_CAP_VIDEOS_PER_MODULE,
+) -> tuple[int, int, int, int]:
+    """
+    From UI: number of sections (modules) and target course length in hours.
+    Returns (num_modules, videos_per_module, total_course_minutes, module_minutes)
+    with each video 3 minutes. total may be slightly below target hours if caps apply.
+    """
+    n = max(1, min(30, int(num_modules)))
+    h = max(1, min(40, int(duration_hours)))
+    target_total = h * 60
+    mpm = max(1, target_total // n)
+    vpm = max(1, mpm // 3)
+    vpm = min(int(cap_videos_per_module), vpm)
+    mod_min = vpm * 3
+    actual_total = n * mod_min
+    return n, vpm, actual_total, mod_min
+
 
 def _base_dirs() -> tuple[Path, Path, Path]:
     here = Path(__file__).resolve().parent
@@ -165,6 +190,11 @@ def _normalize_script(data: dict[str, Any], topic: str) -> dict[str, Any]:
 def generate_course_outline(
     source_text: str,
     course_title: str,
+    *,
+    num_modules: int = 5,
+    videos_per_module: int = 4,
+    total_course_minutes: int = 60,
+    module_minutes: int = 12,
 ) -> dict[str, Any]:
     client = _openai_client()
     if len(source_text) > MAX_SOURCE_CHARS:
@@ -173,33 +203,35 @@ def generate_course_outline(
         )
         source_text = source_text[:MAX_SOURCE_CHARS]
 
-    system = """You design a short online course from the supplied book text. Output ONE JSON object only (no markdown, no code fences) with this exact structure:
-{
+    n, v, tot, mod_min = (num_modules, videos_per_module, total_course_minutes, module_minutes)
+    system = f"""You design an online course from the supplied book text. Output ONE JSON object only
+(no markdown, no code fences) with this exact structure:
+{{
   "course_title": "<string, matches user course theme>",
-  "total_course_minutes": 60,
+  "total_course_minutes": {tot},
   "modules": [
-    {
+    {{
       "module_num": 1,
       "title": "<module title>",
-      "module_minutes": 12,
+      "module_minutes": {mod_min},
       "summary": "<2-3 sentences; what this module covers, grounded in the source>",
       "videos": [
-        {
+        {{
           "video_num": 1,
           "title": "<short video title>",
           "duration_minutes": 3,
           "learning_focus": "<1-2 sentences: what the learner takes away>"
-        }
+        }}
       ]
-    }
+    }}
   ]
-}
+}}
 Rules:
-- Exactly 5 modules. module_num 1..5.
-- Each module has exactly 4 videos. video_num 1..4 within that module.
-- Each video duration_minutes must be 3; each module_minutes 12; total 60.
-- Titles and learning_focus must follow themes from the book (regulations, product development, packaging, sales channels, food safety, business planning, etc. as the text allows).
-- Order modules in a logical teaching sequence for someone starting a specialty food business.
+- Exactly {n} modules. module_num 1..{n}.
+- Each module has exactly {v} videos. video_num 1..{v} within that module.
+- Each video duration_minutes must be 3; each module_minutes must be {mod_min}; total across all videos = {tot}.
+- Titles and learning_focus must follow themes and facts from the source text (use what the book actually covers).
+- Order modules in a logical teaching sequence for the subject of the book.
 - Return only valid JSON."""
 
     user = f"""Course theme (use in course_title): {course_title}
@@ -220,28 +252,45 @@ Rules:
     if not raw:
         raise RuntimeError("Empty model response (outline)")
     data: dict[str, Any] = json.loads(raw)
-    return _validate_outline(data, course_title)
+    return _validate_outline(
+        data,
+        course_title,
+        num_modules=n,
+        videos_per_module=v,
+        total_course_minutes=tot,
+        module_minutes=mod_min,
+    )
 
 
-def _validate_outline(data: dict[str, Any], course_title: str) -> dict[str, Any]:
+def _validate_outline(
+    data: dict[str, Any],
+    course_title: str,
+    *,
+    num_modules: int = 5,
+    videos_per_module: int = 4,
+    total_course_minutes: int = 60,
+    module_minutes: int = 12,
+) -> dict[str, Any]:
     if "modules" not in data:
         raise ValueError("outline missing 'modules'")
     modules = data["modules"]
-    if not isinstance(modules, list) or len(modules) != 5:
-        raise ValueError("outline must have exactly 5 modules")
+    if not isinstance(modules, list) or len(modules) != num_modules:
+        raise ValueError(f"outline must have exactly {num_modules} modules")
     for i, m in enumerate(modules, start=1):
         if m.get("module_num") != i:
             m["module_num"] = i
         vids = m.get("videos")
-        if not isinstance(vids, list) or len(vids) != 4:
-            raise ValueError(f"module {i} must have exactly 4 videos")
+        if not isinstance(vids, list) or len(vids) != videos_per_module:
+            raise ValueError(
+                f"module {i} must have exactly {videos_per_module} videos"
+            )
         for j, v in enumerate(vids, start=1):
             if v.get("video_num") != j:
                 v["video_num"] = j
             v["duration_minutes"] = 3
-        m["module_minutes"] = 12
+        m["module_minutes"] = module_minutes
     data["course_title"] = data.get("course_title") or course_title
-    data["total_course_minutes"] = 60
+    data["total_course_minutes"] = total_course_minutes
     return data
 
 
@@ -497,6 +546,20 @@ def _parse() -> argparse.Namespace:
         action="store_true",
         help="With landing: generate text only, no gpt-image-2 / DALL·E image.",
     )
+    p.add_argument(
+        "--num-modules",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Number of course sections in the outline (default: 5).",
+    )
+    p.add_argument(
+        "--duration-hours",
+        type=int,
+        default=1,
+        metavar="H",
+        help="Target total on-camera hours; used with --num-modules to size the outline (default: 1 = 60 min).",
+    )
     return p.parse_args()
 
 
@@ -582,11 +645,32 @@ if __name__ == "__main__":
     if not source:
         raise SystemExit("No text extracted; check PDF.")
 
-    print(f"Collected {len(source)} characters; generating course outline (5 modules x 4 videos)...")
-    outline = generate_course_outline(source, args.course_title)
+    n, vpm, tot, mod_min = compute_course_shape(
+        args.num_modules, args.duration_hours
+    )
+    n_lessons = n * vpm
+    print(
+        f"Collected {len(source)} characters; course shape: {n} modules x {vpm} "
+        f"videos ({n_lessons} lessons, ~{tot} min total)..."
+    )
+    outline = generate_course_outline(
+        source,
+        args.course_title,
+        num_modules=n,
+        videos_per_module=vpm,
+        total_course_minutes=tot,
+        module_minutes=mod_min,
+    )
     outline_path = out_root / "course_outline.json"
     outline["source_pdf"] = pdf.name
     outline["extracted_stem"] = stem
+    outline["pipeline_params"] = {
+        "num_modules": n,
+        "duration_hours": int(args.duration_hours),
+        "videos_per_module": vpm,
+        "module_minutes": mod_min,
+        "total_course_minutes": tot,
+    }
     outline_path.write_text(
         json.dumps(outline, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -620,7 +704,8 @@ if __name__ == "__main__":
     print(f"Wrote {ur_path.resolve()}")
 
     if args.all_scripts:
-        print("Generating per-lesson script.json (20 API calls)...")
+        n_less = len(_flatten_lessons(outline))
+        print(f"Generating per-lesson script.json ({n_less} API calls)...")
         run_all_scripts(source, outline, out_root, ex_root)
         print("Done. Render all local MP4s: python batch_stage1.py  (in this folder)")
 
